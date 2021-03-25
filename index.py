@@ -1,6 +1,8 @@
 import configparser
 from flask import Flask, request
 from pymongo import MongoClient
+from pymongo.errors import PyMongoError
+from werkzeug.exceptions import BadRequest
 
 
 def make_app(db: MongoClient) -> Flask:
@@ -11,18 +13,26 @@ def make_app(db: MongoClient) -> Flask:
         if request.content_type != 'application/json':
             return 'Content-Type must be application/json', 400
 
-        couriers_data = request.get_json()
+        try:
+            couriers_data = request.get_json()
 
-        db_response = db['couriers'].insert_one(couriers_data)
+            db_response = db['couriers'].insert_one(couriers_data)
 
-        couriers_list = []
-        for courier in couriers_data['data']:
-            couriers_list.append({'id': courier['courier_id']})
+            couriers_list = []
+            for courier in couriers_data['data']:
+                couriers_list.append({'id': courier['courier_id']})
 
-        if db_response.acknowledged:
-            response = {"couriers": couriers_list}
-            return response, 201
-        return 400
+            if db_response.acknowledged:
+                response = {"couriers": couriers_list}
+                return response, 201
+            else:
+                return 'Operation was not acknowledged', 400
+        except BadRequest as e:
+            return 'Error when parsing JSON: ' + str(e), 400
+        except PyMongoError as e:
+            return 'Database error: ' + str(e), 400
+        except Exception as e:
+            return str(e), 400
 
     return app
 

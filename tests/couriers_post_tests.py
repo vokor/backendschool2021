@@ -52,6 +52,30 @@ class CouriersPostTests(unittest.TestCase):
         self.assertEqual('Content-Type must be application/json', response_data)
         self.assertEqual(400, http_response.status_code)
 
+    def test_when_database_error_should_return_bad_request(self):
+        headers = [('Content-Type', 'application/json')]
+        couriers_data = self.read_couriers_data()
+
+        future = mockupdb.go(self.app.post, '/couriers', data=json_util.dumps(couriers_data), headers=headers)
+        if self.server.got(mockupdb.OpMsg({'count': 'couriers'}, namespace='db')):
+            self.server.ok(n=0)
+        if self.server.got(mockupdb.OpMsg({'insert': 'couriers', 'documents': [couriers_data]}, namespace='db')):
+            self.server.command_err(11000, 'message')
+
+        http_response = future()
+        http_data = http_response.get_data(as_text=True)
+        self.assertIn('Database error: ', http_data)
+        self.assertEqual(400, http_response.status_code)
+
+    def test_when_incorrect_json_should_return_bad_request(self):
+        headers = [('Content-Type', 'application/json')]
+
+        http_response = self.app.post('/couriers', data='{', headers=headers)
+
+        response_data = http_response.get_data(as_text=True)
+        self.assertIn('Error when parsing JSON: ', response_data)
+        self.assertEqual(400, http_response.status_code)
+
     @classmethod
     def tearDownClass(cls):
         cls.server.stop()
