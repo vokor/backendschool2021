@@ -58,8 +58,10 @@ class CouriersValidatorTests(unittest.TestCase):
         self.data_validator.validate_couriers(couriers_data)
 
     @parameterized.expand([
-        ({'EXTRA': 0, 'data': [{'courier_id': 1, 'courier_type': 'bike', 'regions': [], 'working_hours': ["00:59-23:59"]}]}, ''),
-        ({'data': [{'EXTRA': 0, 'courier_id': 1, 'courier_type': 'bike', 'regions': [], 'working_hours': ["00:59-23:59"]}]}, "{'couriers': [{'id': 1}]}"),
+        ({'EXTRA': 0, 'data': [{'courier_id': 1, 'courier_type': 'bike', 'regions': [],
+                                'working_hours': ["00:59-23:59"]}]}, ''),
+        ({'data': [{'EXTRA': 0, 'courier_id': 1, 'courier_type': 'bike', 'regions': [],
+                    'working_hours': ["00:59-23:59"]}]}, "{'couriers': [{'id': 1}]}"),
     ])
     def test_couriers_should_be_incorrect_when_containing_extra_fields(self, couriers_data: dict, field_name: str):
         self.assert_exception(couriers_data, field_name)
@@ -83,11 +85,10 @@ class CouriersValidatorTests(unittest.TestCase):
         self.assertEqual(end_time, datetime.strptime("23:59", "%H:%M"))
 
     @parameterized.expand([
-        ({'data': [{'courier_id': 1, 'courier_type': 'bike', 'regions': [], 'working_hours': ["09:59-33:33"]}]}, 'hour'),
-        ({'data': [{'courier_id': 1, 'courier_type': 'bike', 'regions': [], 'working_hours': ["9:9-22:33"]}]}, 'hour')
-
+        [{'data': [{'courier_id': 1, 'courier_type': 'bike', 'regions': [],'working_hours': ["09:59-33:33"]}]}],
+        [{'data': [{'courier_id': 1, 'courier_type': 'bike', 'regions': [],'working_hours': ["9:9-22:33"]}]}]
     ])
-    def test_couriers_should_be_incorrect_when_working_hours_in_wrong_format(self, couriers_data: dict, data_type: str):
+    def test_couriers_should_be_incorrect_when_working_hours_in_wrong_format(self, couriers_data: dict):
         self.assert_exception(couriers_data, "{'couriers': [{'id': 1}]}")
 
 

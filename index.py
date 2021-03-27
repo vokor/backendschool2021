@@ -8,6 +8,7 @@ from typing import Tuple
 from flask import Flask, request
 from jsonschema.exceptions import ValidationError
 from pymongo import MongoClient, ReturnDocument
+from pymongo.database import Database
 from pymongo.errors import PyMongoError
 from pymongo.results import InsertOneResult
 from werkzeug.exceptions import BadRequest
@@ -15,7 +16,7 @@ from werkzeug.exceptions import BadRequest
 from data_validator import DataValidator
 
 
-def make_app(db: MongoClient, data_validator: DataValidator) -> Flask:
+def make_app(db: Database, data_validator: DataValidator) -> Flask:
     app = Flask(__name__)
 
     def make_error_response(message: str, status_code: int) -> Tuple[dict, int]:
@@ -43,6 +44,38 @@ def make_app(db: MongoClient, data_validator: DataValidator) -> Flask:
 
                 if db_response.acknowledged:
                     response = {'couriers': couriers_list}
+                    return response, 201
+                else:
+                    return make_error_response('Operation was not acknowledged', 400)
+        except ValidationError as e:
+            response = {'validation_error': e.message}
+            return response, 400
+        except BadRequest as e:
+            return make_error_response('Error when parsing JSON: ' + str(e), 400)
+        except PyMongoError as e:
+            return make_error_response('Database error: ' + str(e), 400)
+        except Exception as e:
+            return make_error_response(str(e), 400)
+
+    @app.route('/orders', methods=['POST'])
+    def add_orders():
+
+        if not request.is_json:
+            return make_error_response('Content-Type must be application/json', 400)
+
+        try:
+            orders_data = request.get_json()
+            data_validator.validate_orders(orders_data)
+
+            with locks['post_orders']:
+                # TODO: check for duplicate values in db
+                db_response: InsertOneResult = db['orders'].insert_one(orders_data)
+                orders_list = []
+                for order in orders_data['data']:
+                    orders_list.append({'id': order['order_id']})
+
+                if db_response.acknowledged:
+                    response = {'orders': orders_list}
                     return response, 201
                 else:
                     return make_error_response('Operation was not acknowledged', 400)
