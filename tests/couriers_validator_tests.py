@@ -30,11 +30,11 @@ class CouriersValidatorTests(unittest.TestCase):
         self.assert_exception(couriers_data, f'\'{field_name}\' is a required property')
 
     @parameterized.expand([
-        ({'data': [{'courier_id': 1, 'regions': [], 'working_hours': []}]}, 'courier_type'),
-        ({'data': [{'courier_id': 1, 'courier_type': 'bike', 'working_hours': []}]}, 'regions'),
-        ({'data': [{'courier_id': 1, 'courier_type': 'bike', 'regions': []}]}, 'working_hours'),
+        [{'data': [{'courier_id': 1, 'regions': [], 'working_hours': []}]}],
+        [{'data': [{'courier_id': 1, 'courier_type': 'bike', 'working_hours': []}]}],
+        [{'data': [{'courier_id': 1, 'courier_type': 'bike', 'regions': []}]}]
     ])
-    def test_couriers_should_be_incorrect_when_missing_field(self, couriers_data: dict, field_name: str):
+    def test_couriers_should_be_incorrect_when_missing_field(self, couriers_data: dict):
         self.assert_exception(couriers_data, "{'couriers': [{'id': 1}]}")
 
     @parameterized.expand([
@@ -45,13 +45,24 @@ class CouriersValidatorTests(unittest.TestCase):
         self.assert_exception(couriers_data, f'is not of type \'{data_type}\'')
 
     @parameterized.expand([
-        ({'data': [{'courier_id': 1, 'courier_type': None, 'regions': [], 'working_hours': []}]}, 'string'),
-        ({'data': [{'courier_id': 1, 'courier_type': 'bike', 'regions': None, 'working_hours': []}]}, 'array'),
-        ({'data': [{'courier_id': 1, 'courier_type': 'bike', 'regions': [], 'working_hours': None}]}, 'array'),
-        ({'data': [{'courier_id': 1, 'courier_type': 'bike', 'regions': [''], 'working_hours': []}]}, 'integer'),
+        [{'data': [{'courier_id': 1, 'courier_type': None, 'regions': [], 'working_hours': []}]}],
+        [{'data': [{'courier_id': 1, 'courier_type': 'bike', 'regions': None, 'working_hours': []}]}],
+        [{'data': [{'courier_id': 1, 'courier_type': 'bike', 'regions': [], 'working_hours': None}]}],
+        [{'data': [{'courier_id': 1, 'courier_type': 'bike', 'regions': [''], 'working_hours': []}]}]
     ])
-    def test_couriers_should_be_incorrect_when_wrong_type_of_field(self, couriers_data: dict, data_type: str):
+    def test_couriers_should_be_incorrect_when_wrong_type_of_field(self, couriers_data: dict):
         self.assert_exception(couriers_data, "{'couriers': [{'id': 1}]}")
+
+    def test_couriers_data_should_be_correct_with_different_field_order(self):
+        couriers_data = {'data': [{'working_hours': [], 'courier_type': 'bike', 'regions': [], 'courier_id': 1}]}
+        self.data_validator.validate_couriers(couriers_data)
+
+    @parameterized.expand([
+        ({'EXTRA': 0, 'data': [{'courier_id': 1, 'courier_type': 'bike', 'regions': [], 'working_hours': ["00:59-23:59"]}]}, ''),
+        ({'data': [{'EXTRA': 0, 'courier_id': 1, 'courier_type': 'bike', 'regions': [], 'working_hours': ["00:59-23:59"]}]}, "{'couriers': [{'id': 1}]}"),
+    ])
+    def test_couriers_should_be_incorrect_when_containing_extra_fields(self, couriers_data: dict, field_name: str):
+        self.assert_exception(couriers_data, field_name)
 
     @unittest.mock.patch('jsonschema.validate')
     def test_couriers_should_be_incorrect_when_courier_ids_not_unique(self, _):

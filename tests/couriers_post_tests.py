@@ -37,7 +37,7 @@ class CouriersPostTests(unittest.TestCase):
     def test_successful_couriers_post_should_return_list_ids(self):
         headers = [('Content-Type', 'application/json')]
         couriers_data = self.read_couriers_data()
-        document_id = str(couriers_data['_id']) # TODO: additional property!!!
+        document_id = str(couriers_data['_id'])
 
         future = mockupdb.go(self.app.post, '/couriers', data=json_util.dumps(couriers_data), headers=headers)
         if self.server.got(mockupdb.OpMsg({'count': 'couriers'}, namespace='db')):
@@ -96,7 +96,7 @@ class CouriersPostTests(unittest.TestCase):
 
             http_response = self.app.post('/couriers', data=json_util.dumps(req), headers=headers)
 
-            response_data = http_response.get_json()
+            response_data = http_response.get_json() #TODO have problems
 
             self.assertEqual(1, response_data['validation_error']['couriers'][0]['id'])
             self.assertEqual(2, response_data['validation_error']['couriers'][1]['id'])

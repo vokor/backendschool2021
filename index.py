@@ -41,12 +41,12 @@ def make_app(db: MongoClient, data_validator: DataValidator) -> Flask:
                     couriers_list.append({'id': courier['courier_id']})
 
                 if db_response.acknowledged:
-                    response = {"couriers": couriers_list}
+                    response = {'couriers': couriers_list}
                     return response, 201
                 else:
                     return make_error_response('Operation was not acknowledged', 400)
         except ValidationError as e:
-            response = {"validation_error": e.message}
+            response = {'validation_error': e.message}
             return response, 400
         except BadRequest as e:
             return make_error_response('Error when parsing JSON: ' + str(e), 400)
