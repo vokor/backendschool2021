@@ -1,12 +1,15 @@
 import configparser
 import logging
 import os
+from collections import defaultdict
+from multiprocessing import Lock
 from typing import Tuple
 
-from flask import Flask, request, jsonify
+from flask import Flask, request
 from jsonschema.exceptions import ValidationError
 from pymongo import MongoClient
 from pymongo.errors import PyMongoError
+from pymongo.results import InsertOneResult
 from werkzeug.exceptions import BadRequest
 
 from data_validator import DataValidator
@@ -19,8 +22,11 @@ def make_app(db: MongoClient, data_validator: DataValidator) -> Flask:
         app.logger.error(message)
         return {'message': message}, status_code
 
+    locks = defaultdict(Lock)
+
     @app.route('/couriers', methods=['POST'])
     def add_couriers():
+
         if not request.is_json:
             return make_error_response('Content-Type must be application/json', 400)
 
@@ -28,17 +34,17 @@ def make_app(db: MongoClient, data_validator: DataValidator) -> Flask:
             couriers_data = request.get_json()
             data_validator.validate_couriers(couriers_data)
 
-            db_response = db['couriers'].insert_one(couriers_data)
+            with locks['post_couriers']:
+                db_response: InsertOneResult = db['couriers'].insert_one(couriers_data)
+                couriers_list = []
+                for courier in couriers_data['data']:
+                    couriers_list.append({'id': courier['courier_id']})
 
-            couriers_list = []
-            for courier in couriers_data['data']:
-                couriers_list.append({'id': courier['courier_id']})
-
-            if db_response.acknowledged:
-                response = {"couriers": couriers_list}
-                return response, 201
-            else:
-                return make_error_response('Operation was not acknowledged', 400)
+                if db_response.acknowledged:
+                    response = {"couriers": couriers_list}
+                    return response, 201
+                else:
+                    return make_error_response('Operation was not acknowledged', 400)
         except ValidationError as e:
             response = {"validation_error": e.message}
             return response, 400
