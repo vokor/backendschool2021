@@ -6,11 +6,17 @@ from bson import json_util
 from jsonschema import ValidationError
 
 
-class Validator:
+class DataValidator:
     def __init__(self):
-        with open(os.path.join(os.path.dirname(__file__), 'schemas', 'data_schema.json')) as f:
+        data_schema_path = os.path.join(os.path.dirname(__file__), 'schemas', 'data_schema.json')
+        courier_schema_path = os.path.join(os.path.dirname(__file__), 'schemas', 'courier_schema.json')
+        if not os.path.exists(data_schema_path):
+            raise FileNotFoundError(data_schema_path)
+        if not os.path.exists(courier_schema_path):
+            raise FileNotFoundError(courier_schema_path)
+        with open(data_schema_path) as f:
             self.data_schema = json_util.loads(f.read())
-        with open(os.path.join(os.path.dirname(__file__), 'schemas', 'courier_schema.json')) as f:
+        with open(courier_schema_path) as f:
             self.courier_schema = json_util.loads(f.read())
 
     def validate_couriers(self, couriers_data: dict):

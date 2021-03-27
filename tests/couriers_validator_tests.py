@@ -7,22 +7,22 @@ from bson import json_util
 from jsonschema import ValidationError
 from parameterized import parameterized
 
-from validator import Validator
+from data_validator import DataValidator
 
 
 class CouriersValidatorTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.validator = Validator()
+        cls.data_validator = DataValidator()
 
     def test_correct_couriers_should_be_valid(self):
         with open(os.path.join(os.path.dirname(__file__), 'couriers.json')) as f:
-            import_data = json_util.loads(f.read())
-        self.validator.validate_couriers(import_data)
+            couriers_data = json_util.loads(f.read())
+        self.data_validator.validate_couriers(couriers_data)
 
     def assert_exception(self, couriers_data: dict, expected_exception_message: str):
         with self.assertRaises(ValidationError) as context:
-            self.validator.validate_couriers(couriers_data)
+            self.data_validator.validate_couriers(couriers_data)
         self.assertIn(expected_exception_message, str(context.exception.message))
 
     @parameterized.expand([({}, 'data')])
@@ -62,7 +62,7 @@ class CouriersValidatorTests(unittest.TestCase):
     def test_correct_working_hours_should_be_parsed(self, _):
         couriers_data = {
             'data': [{'courier_id': 1, 'courier_type': 'bike', 'regions': [], 'working_hours': ["00:59-23:59"]}]}
-        self.validator.validate_couriers(couriers_data)
+        self.data_validator.validate_couriers(couriers_data)
         working_hours = couriers_data['data'][0]['working_hours']
         self.assertIsInstance(working_hours, list)
         self.assertEqual(len(working_hours), 1)

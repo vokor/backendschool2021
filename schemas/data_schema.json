@@ -6,7 +6,6 @@
             "type": "array"
         }
     },
-    "additionalProperties": false,
     "required": [
         "data"
     ]
