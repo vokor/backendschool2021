@@ -7,7 +7,7 @@ from typing import Tuple
 
 from flask import Flask, request
 from jsonschema.exceptions import ValidationError
-from pymongo import MongoClient
+from pymongo import MongoClient, ReturnDocument
 from pymongo.errors import PyMongoError
 from pymongo.results import InsertOneResult
 from werkzeug.exceptions import BadRequest
@@ -35,6 +35,7 @@ def make_app(db: MongoClient, data_validator: DataValidator) -> Flask:
             data_validator.validate_couriers(couriers_data)
 
             with locks['post_couriers']:
+                # TODO: check for duplicate values in db
                 db_response: InsertOneResult = db['couriers'].insert_one(couriers_data)
                 couriers_list = []
                 for courier in couriers_data['data']:
@@ -48,6 +49,40 @@ def make_app(db: MongoClient, data_validator: DataValidator) -> Flask:
         except ValidationError as e:
             response = {'validation_error': e.message}
             return response, 400
+        except BadRequest as e:
+            return make_error_response('Error when parsing JSON: ' + str(e), 400)
+        except PyMongoError as e:
+            return make_error_response('Database error: ' + str(e), 400)
+        except Exception as e:
+            return make_error_response(str(e), 400)
+
+    @app.route('/couriers/<int:courier_id>', methods=['PATCH'])
+    def patch_courier(courier_id):
+        if not request.is_json:
+            return make_error_response('Content-Type must be application/json', 400)
+
+        try:
+            patch_data = request.get_json()
+            data_validator.validate_courier_patch(patch_data)
+
+            update_data = {
+                '$set': {f'data.$.{key}': val for key, val in patch_data.items()}
+            }
+            projection = {
+                '_id': 0,
+                'data': {
+                    '$elemMatch': {'courier_id': courier_id}
+                }
+            }
+            db_response: dict = db['couriers'].find_one_and_update(
+                filter={'data.courier_id': courier_id}, update=update_data,
+                projection=projection, return_document=ReturnDocument.AFTER)
+            if db_response is None:
+                return make_error_response('Courier with specified id not found', 400)
+
+            return {'data': db_response['data'][0]}, 201
+        except ValidationError as e:
+            return make_error_response('Courier patch is not valid: ' + str(e), 400)
         except BadRequest as e:
             return make_error_response('Error when parsing JSON: ' + str(e), 400)
         except PyMongoError as e:

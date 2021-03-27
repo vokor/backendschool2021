@@ -38,3 +38,6 @@ class DataValidator(object):
                 end_time = datetime.strptime(time_parts[1], "%H:%M")
                 parsed_time_list.append((begin_time, end_time))
             courier['working_hours'] = parsed_time_list
+
+    def validate_courier_patch(self, patch_data: dict):
+        pass
