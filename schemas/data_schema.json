@@ -1,0 +1,13 @@
+{
+    "title": "Data",
+    "type": "object",
+    "properties": {
+        "data": {
+            "type": "array"
+        }
+    },
+    "additionalProperties": false,
+    "required": [
+        "data"
+    ]
+}

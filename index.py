@@ -1,7 +1,7 @@
 import configparser
 import os
 
-from flask import Flask, request
+from flask import Flask, request, jsonify
 from jsonschema.exceptions import ValidationError
 from pymongo import MongoClient
 from pymongo.errors import PyMongoError
@@ -23,7 +23,7 @@ def make_app(db: MongoClient, validator: Validator) -> Flask:
 
         try:
             couriers_data = request.get_json()
-            validator.validate_import(couriers_data)
+            validator.validate_couriers(couriers_data)
 
             db_response = db['couriers'].insert_one(couriers_data)
 
@@ -37,7 +37,8 @@ def make_app(db: MongoClient, validator: Validator) -> Flask:
             else:
                 return make_message_response('Operation was not acknowledged'), 400
         except ValidationError as e:
-            return make_message_response('Import data is not valid: ' + str(e)), 400
+            response = {"validation_error": e.message}
+            return jsonify(response), 400
         except BadRequest as e:
             return make_message_response('Error when parsing JSON: ' + str(e)), 400
         except PyMongoError as e:
