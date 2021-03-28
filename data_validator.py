@@ -1,5 +1,5 @@
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import jsonschema
 from bson import json_util
@@ -11,12 +11,16 @@ class DataValidator(object):
         data_schema_path = os.path.join(os.path.dirname(__file__), 'schemas', 'data_schema.json')
         courier_schema_path = os.path.join(os.path.dirname(__file__), 'schemas', 'courier_schema.json')
         order_schema_path = os.path.join(os.path.dirname(__file__), 'schemas', 'order_schema.json')
+        complete_schema_path = os.path.join(os.path.dirname(__file__), 'schemas', 'complete_schema.json')
         with open(data_schema_path) as f:
             self.data_schema = json_util.loads(f.read())
         with open(courier_schema_path) as f:
             self.courier_schema = json_util.loads(f.read())
         with open(order_schema_path) as f:
             self.order_schema = json_util.loads(f.read())
+        with open(complete_schema_path) as f:
+            self.complete_schema = json_util.loads(f.read())
+        self.assign_schema = {"courier_id": {"type": "integer", "minimum": 1}}
 
     def validate_couriers(self, couriers_data: dict):
         jsonschema.validate(couriers_data, self.data_schema)
@@ -39,10 +43,12 @@ class DataValidator(object):
                 time_parts = working_hour.split('-')
                 begin_time = datetime.strptime(time_parts[0], "%H:%M")
                 end_time = datetime.strptime(time_parts[1], "%H:%M")
+                if begin_time > end_time:
+                    end_time += timedelta(days=1)
                 parsed_time_list.append((begin_time, end_time))
             courier['working_hours'] = parsed_time_list
 
-    def validate_orders(self, orders_data: dict): # TODO: may be duplicate code AND check weight 0.043434...
+    def validate_orders(self, orders_data: dict):  # TODO: may be duplicate code AND check weight 0.043434...
         jsonschema.validate(orders_data, self.data_schema)
         errors = []
         for order in orders_data['data']:
@@ -63,8 +69,16 @@ class DataValidator(object):
                 time_parts = working_hour.split('-')
                 begin_time = datetime.strptime(time_parts[0], "%H:%M")
                 end_time = datetime.strptime(time_parts[1], "%H:%M")
+                if begin_time > end_time:
+                    end_time += timedelta(days=1)
                 parsed_time_list.append((begin_time, end_time))
             order['delivery_hours'] = parsed_time_list
+
+    def validate_complete(self, complete_data: dict):
+        jsonschema.validate(complete_data, self.assign_schema)
+
+    def validate_assign(self, assign_data: dict):
+        jsonschema.validate(assign_data, self.complete_schema)
 
     def validate_courier_patch(self, patch_data: dict):
         pass

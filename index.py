@@ -2,6 +2,7 @@ import configparser
 import logging
 import os
 from collections import defaultdict
+from datetime import datetime
 from multiprocessing import Lock
 from typing import Tuple
 
@@ -43,51 +44,14 @@ def make_app(db: Database, data_validator: DataValidator) -> Flask:
                                            'regions': courier['regions'],
                                            'working_hours': courier['working_hours'],
                                            'assigns': 0})
-                db_response: InsertOneResult = db['couriers'].insert_many(data_to_insert) # TODO: catch human readable exception
+                db_response: InsertOneResult = db['couriers'].insert_many(
+                    data_to_insert)  # TODO: catch human readable exception
 
                 if db_response.acknowledged:
                     couriers_list = []
                     for courier in couriers_data['data']:
                         couriers_list.append({'id': courier['courier_id']})
                     response = {'couriers': couriers_list}
-                    return response, 201
-                else:
-                    return make_error_response('Operation was not acknowledged', 400)
-        except ValidationError as e:
-            response = {'validation_error': e.message}
-            return response, 400
-        except BadRequest as e:
-            return make_error_response('Error when parsing JSON: ' + str(e), 400)
-        except PyMongoError as e:
-            return make_error_response('Database error: ' + str(e), 400)
-        except Exception as e:
-            return make_error_response(str(e), 400)
-
-    @app.route('/orders', methods=['POST'])
-    def add_orders():
-
-        if not request.is_json:
-            return make_error_response('Content-Type must be application/json', 400)
-
-        try:
-            orders_data = request.get_json()
-            data_validator.validate_orders(orders_data)
-
-            with locks['post_orders']:
-
-                data_to_insert = []
-                for order in orders_data['data']:
-                    data_to_insert.append({'_id': order['order_id'],
-                                           'weight': order['weight'],
-                                           'region': order['region'],
-                                           'delivery_hours': order['delivery_hours']})
-                db_response: InsertOneResult = db['orders'].insert_many(data_to_insert) # TODO: catch human readable exception
-
-                if db_response.acknowledged:
-                    orders_list = []
-                    for order in orders_data['data']:
-                        orders_list.append({'id': order['order_id']})
-                    response = {'orders': orders_list}
                     return response, 201
                 else:
                     return make_error_response('Operation was not acknowledged', 400)
@@ -121,6 +85,158 @@ def make_app(db: Database, data_validator: DataValidator) -> Flask:
             return {'data': db_response}, 201
         except ValidationError as e:
             return make_error_response('Courier patch is not valid: ' + str(e), 400)
+        except BadRequest as e:
+            return make_error_response('Error when parsing JSON: ' + str(e), 400)
+        except PyMongoError as e:
+            return make_error_response('Database error: ' + str(e), 400)
+        except Exception as e:
+            return make_error_response(str(e), 400)
+
+    @app.route('/orders', methods=['POST'])
+    def add_orders():
+
+        if not request.is_json:
+            return make_error_response('Content-Type must be application/json', 400)
+
+        try:
+            orders_data = request.get_json()
+            data_validator.validate_orders(orders_data)
+
+            with locks['post_orders']:
+
+                data_to_insert = []
+                for order in orders_data['data']:
+                    data_to_insert.append({'_id': order['order_id'],
+                                           'weight': order['weight'],
+                                           'region': order['region'],
+                                           'delivery_hours': order['delivery_hours']})
+                db_response: InsertOneResult = db['orders'].insert_many(
+                    data_to_insert)  # TODO: catch human readable exception
+
+                if db_response.acknowledged:
+                    orders_list = []
+                    for order in orders_data['data']:
+                        orders_list.append({'id': order['order_id']})
+                    response = {'orders': orders_list}
+                    return response, 201
+                else:
+                    return make_error_response('Operation was not acknowledged', 400)
+        except ValidationError as e:
+            response = {'validation_error': e.message}
+            return response, 400
+        except BadRequest as e:
+            return make_error_response('Error when parsing JSON: ' + str(e), 400)
+        except PyMongoError as e:
+            return make_error_response('Database error: ' + str(e), 400)
+        except Exception as e:
+            return make_error_response(str(e), 400)
+
+    @app.route('/orders/assign', methods=['POST'])
+    def assign_orders():
+
+        if not request.is_json:
+            return make_error_response('Content-Type must be application/json', 400)
+
+        try:
+            assign_id_data = request.get_json()
+            data_validator.validate_orders(assign_id_data)
+
+            courier = db['couriers'].find({'_id': assign_id_data['courier_id']})
+            if courier is None:
+                return make_error_response('Courier with specified id not found', 400)
+
+            assigned_orders = {
+                'status': 'in_progress',
+                'courier_id': courier.courier_id
+            }
+            db_response: dict = db['orders'].find(filter=assigned_orders)
+            assign_time = db_response[0]['assign_time']
+            if db_response is None:
+                max_weight = 10 * (courier.courier_type == 'foot') + 15 * (
+                        courier.courier_type == 'bike') + 50 * (courier.courier_type == 'car')
+                matching_orders = {
+                    'status': 'not_assigned',
+                    'weight': {'$lte': max_weight},
+                    'region': {'$in': courier.regions},
+                }
+                db_response: dict = db['orders'].find(filter=matching_orders)
+                if db_response is None:
+                    return {'orders': []}, 201
+                orders = []
+                for order in db_response:
+                    find = False
+                    for st2, fn2 in order['delivery_hours']:
+                        for st1, fn1 in courier['working_hours']:
+                            if st2 <= st1 and fn1 <= fn2:
+                                orders.append(order['_id'])
+                                find = True
+                                break
+                    if find:
+                        break
+                if len(orders) == 0:
+                    return {'orders': []}, 201
+                else:
+                    assign_time = datetime.now(tz=None)
+                    update_data = {
+                        '$set': {
+                            'status': 'in_progress',
+                            'assign_time': assign_time,
+                            'courier_id': courier.courier_id
+                        }
+                    }
+                    db_response: dict = db['orders'].find_one_and_update(
+                        filter={'_id': {'$in': orders}}, update=update_data, return_document=ReturnDocument.AFTER)
+            orders_id = []
+            for order in db_response:
+                orders_id.append({'id': order['_id']})
+            response = {'orders': orders_id, 'assign_time': assign_time}
+            return response, 201
+
+        except ValidationError as e:
+            response = {'validation_error': e.message}
+            return response, 400
+        except BadRequest as e:
+            return make_error_response('Error when parsing JSON: ' + str(e), 400)
+        except PyMongoError as e:
+            return make_error_response('Database error: ' + str(e), 400)
+        except Exception as e:
+            return make_error_response(str(e), 400)
+
+    @app.route('/orders/complete', methods=['POST'])
+    def complete_order():
+
+        if not request.is_json:
+            return make_error_response('Content-Type must be application/json', 400)
+
+        try:
+            complete_data = request.get_json()
+            data_validator.validate_orders(complete_data)
+
+            if db['couriers'].find({'_id': complete_data['courier_id']}) is None:
+                return make_error_response('Courier with specified id not found', 400)
+
+            if db['orders'].find({'_id': complete_data['order_id'], 'status': 'completed'}) is None:
+                return complete_data['order_id'], 201
+            update_data = {
+                '$set': {
+                    'complete_time': complete_data['complete_time'],
+                    'status': 'completed'
+                }
+            }
+            filter_data = {
+                '_id': complete_data['order_id'],
+                'courier_id': complete_data['courier_id'],
+                'status': 'in_progress'
+            }
+            db_response: dict = db['orders'].find_one_and_update(
+                filter=filter_data, update=update_data, return_document=ReturnDocument.AFTER)
+            if db_response is None:
+                return make_error_response('Order with specified fields not found', 400)
+
+            return db_response['_id'], 201
+        except ValidationError as e:
+            response = {'validation_error': e.message}
+            return response, 400
         except BadRequest as e:
             return make_error_response('Error when parsing JSON: ' + str(e), 400)
         except PyMongoError as e:
