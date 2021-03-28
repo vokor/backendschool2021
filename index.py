@@ -68,14 +68,20 @@ def make_app(db: Database, data_validator: DataValidator) -> Flask:
             data_validator.validate_orders(orders_data)
 
             with locks['post_orders']:
-                # TODO: check for duplicate values in db
-                db_response: InsertOneResult = db['orders'].insert_one(orders_data)
-                orders_list = []
+
+                data_to_insert = []
                 for order in orders_data['data']:
-                    orders_list.append({'id': order['order_id']})
+                    data_to_insert.append({'_id': order['order_id'],
+                                           'weight': order['weight'],
+                                           'region': order['region'],
+                                           'delivery_hours': order['delivery_hours']}) # TODO: refactor this
+                db_response: InsertOneResult = db['orders'].insert_many(data_to_insert)
 
                 if db_response.acknowledged:
-                    response = {'orders': orders_list}
+                    orders_list = []
+                    for order in orders_data['data']:
+                        orders_list.append({'id': order['order_id']})
+                    response = {'data': orders_list}
                     return response, 201
                 else:
                     return make_error_response('Operation was not acknowledged', 400)

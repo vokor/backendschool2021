@@ -59,6 +59,17 @@ class OrdersPostTests(unittest.TestCase):
         self.assertIn('Error when parsing JSON: ', response_data)
         self.assertEqual(400, http_response.status_code)
 
+    def test_when_duplicate_id_should_return_bad_request(self):
+        headers = [('Content-Type', 'application/json')]
+        orders_data = test_utils.read_orders_data()
+        self.app.post('/orders', data=json_util.dumps(orders_data), headers=headers)
+        http_response = self.app.post('/orders', data=json_util.dumps(orders_data), headers=headers)
+
+        response_data = http_response.get_data(as_text=True)
+
+        self.assertEqual(400, http_response.status_code)
+        self.assertIn('Database error: ', response_data)
+
     def test_when_invalid_orders_should_return_bad_request(self):
         headers = [('Content-Type', 'application/json')]
         mock_validation = MagicMock(side_effect=ValidationError('message'))
