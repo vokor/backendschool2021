@@ -4,6 +4,9 @@ from datetime import datetime, timedelta
 import jsonschema
 from bson import json_util
 from jsonschema import ValidationError
+import iso8601
+
+from parser import parse_hours
 
 
 class DataValidator(object):
@@ -36,17 +39,7 @@ class DataValidator(object):
         courier_ids = {courier['courier_id'] for courier in couriers_data['data']}
         if len(courier_ids) != len(couriers_data['data']):
             raise ValidationError('Couriers ids are not unique')
-
-        for courier in couriers_data['data']:
-            parsed_time_list = []
-            for working_hour in courier['working_hours']:
-                time_parts = working_hour.split('-')
-                begin_time = datetime.strptime(time_parts[0], "%H:%M")
-                end_time = datetime.strptime(time_parts[1], "%H:%M")
-                if begin_time > end_time:
-                    end_time += timedelta(days=1)
-                parsed_time_list.append((begin_time, end_time))
-            courier['working_hours'] = parsed_time_list
+        parse_hours(couriers_data, 'working_hours')
 
     def validate_orders(self, orders_data: dict):  # TODO: may be duplicate code AND check weight 0.043434...
         jsonschema.validate(orders_data, self.data_schema)
@@ -62,23 +55,14 @@ class DataValidator(object):
         order_ids = {order['order_id'] for order in orders_data['data']}
         if len(order_ids) != len(orders_data['data']):
             raise ValidationError('Orders ids are not unique')
-
-        for order in orders_data['data']:
-            parsed_time_list = []
-            for working_hour in order['delivery_hours']:
-                time_parts = working_hour.split('-')
-                begin_time = datetime.strptime(time_parts[0], "%H:%M")
-                end_time = datetime.strptime(time_parts[1], "%H:%M")
-                if begin_time > end_time:
-                    end_time += timedelta(days=1)
-                parsed_time_list.append((begin_time, end_time))
-            order['delivery_hours'] = parsed_time_list
+        parse_hours(orders_data, 'delivery_hours')
 
     def validate_complete(self, complete_data: dict):
-        jsonschema.validate(complete_data, self.assign_schema)
+        jsonschema.validate(complete_data, self.complete_schema, format_checker=jsonschema.FormatChecker())
+        complete_data['complete_time'] = iso8601.parse_date(complete_data['complete_time'])
 
     def validate_assign(self, assign_data: dict):
-        jsonschema.validate(assign_data, self.complete_schema)
+        jsonschema.validate(assign_data, self.assign_schema)
 
     def validate_courier_patch(self, patch_data: dict):
         pass

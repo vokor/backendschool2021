@@ -15,6 +15,8 @@ from pymongo.results import InsertOneResult
 from werkzeug.exceptions import BadRequest
 
 from data_validator import DataValidator
+from preparer import prepare_couriers, prepare_orders
+from utils import split_orders
 
 
 def make_app(db: Database, data_validator: DataValidator) -> Flask:
@@ -35,15 +37,9 @@ def make_app(db: Database, data_validator: DataValidator) -> Flask:
         try:
             couriers_data = request.get_json()
             data_validator.validate_couriers(couriers_data)
+            data_to_insert = prepare_couriers(couriers_data)
 
             with locks['post_couriers']:
-                data_to_insert = []
-                for courier in couriers_data['data']:
-                    data_to_insert.append({'_id': courier['courier_id'],
-                                           'courier_type': courier['courier_type'],
-                                           'regions': courier['regions'],
-                                           'working_hours': courier['working_hours'],
-                                           'assigns': 0})
                 db_response: InsertOneResult = db['couriers'].insert_many(
                     data_to_insert)  # TODO: catch human readable exception
 
@@ -77,12 +73,34 @@ def make_app(db: Database, data_validator: DataValidator) -> Flask:
             update_data = {
                 '$set': {f'$.{key}': val for key, val in patch_data.items()}
             }
-            db_response: dict = db['couriers'].find_one_and_update(
+            courier: dict = db['couriers'].find_one_and_update(
                 filter={'_id': courier_id}, update=update_data, return_document=ReturnDocument.AFTER)
-            if db_response is None:
+            if courier is None:
                 return make_error_response('Courier with specified id not found', 400)
 
-            return {'data': db_response}, 201
+            assigned_orders = {
+                'status': 'in_progress',
+                'courier_id': courier_id
+            }
+            db_response: dict = db['orders'].find(filter=assigned_orders)
+            if db_response in None:
+                return courier, 201
+            av_orders, un_orders = split_orders(db_response, courier['working_hours'])
+            max_weight = 10 * (courier['courier_type'] == 'foot') + 15 * (
+                    courier['courier_type'] == 'bike') + 50 * (courier['courier_type'] == 'car')
+            for order in av_orders:
+                if order['weight'] > max_weight or order['region'] not in courier['regions']:
+                    un_orders.append(order['_id'])
+            update_data = {
+                'status': 'not_assigned',
+                'assign_time': None,
+                'courier_id': None
+            }
+            db['orders'].find_one_and_update(
+                filter={'_id': {'$in': un_orders}}, update=update_data,
+                return_document=ReturnDocument.AFTER)  # TODO: remove duplicate code
+
+            return courier, 201
         except ValidationError as e:
             return make_error_response('Courier patch is not valid: ' + str(e), 400)
         except BadRequest as e:
@@ -101,15 +119,10 @@ def make_app(db: Database, data_validator: DataValidator) -> Flask:
         try:
             orders_data = request.get_json()
             data_validator.validate_orders(orders_data)
+            data_to_insert = prepare_orders(orders_data)
 
             with locks['post_orders']:
 
-                data_to_insert = []
-                for order in orders_data['data']:
-                    data_to_insert.append({'_id': order['order_id'],
-                                           'weight': order['weight'],
-                                           'region': order['region'],
-                                           'delivery_hours': order['delivery_hours']})
                 db_response: InsertOneResult = db['orders'].insert_many(
                     data_to_insert)  # TODO: catch human readable exception
 
@@ -152,8 +165,8 @@ def make_app(db: Database, data_validator: DataValidator) -> Flask:
             db_response: dict = db['orders'].find(filter=assigned_orders)
             assign_time = db_response[0]['assign_time']
             if db_response is None:
-                max_weight = 10 * (courier.courier_type == 'foot') + 15 * (
-                        courier.courier_type == 'bike') + 50 * (courier.courier_type == 'car')
+                max_weight = 10 * (courier['courier_type'] == 'foot') + 15 * (
+                        courier['courier_type'] == 'bike') + 50 * (courier['courier_type'] == 'car')
                 matching_orders = {
                     'status': 'not_assigned',
                     'weight': {'$lte': max_weight},
@@ -162,18 +175,8 @@ def make_app(db: Database, data_validator: DataValidator) -> Flask:
                 db_response: dict = db['orders'].find(filter=matching_orders)
                 if db_response is None:
                     return {'orders': []}, 201
-                orders = []
-                for order in db_response:
-                    find = False
-                    for st2, fn2 in order['delivery_hours']:
-                        for st1, fn1 in courier['working_hours']:
-                            if st2 <= st1 and fn1 <= fn2:
-                                orders.append(order['_id'])
-                                find = True
-                                break
-                    if find:
-                        break
-                if len(orders) == 0:
+                av_orders, _ = split_orders(db_response, courier['working_hours'])
+                if len(av_orders) == 0:
                     return {'orders': []}, 201
                 else:
                     assign_time = datetime.now(tz=None)
@@ -184,8 +187,10 @@ def make_app(db: Database, data_validator: DataValidator) -> Flask:
                             'courier_id': courier.courier_id
                         }
                     }
+                    av_order_ids = list(map(lambda x: x['_id'], av_orders))
                     db_response: dict = db['orders'].find_one_and_update(
-                        filter={'_id': {'$in': orders}}, update=update_data, return_document=ReturnDocument.AFTER)
+                        filter={'_id': {'$in': av_order_ids}},
+                        update=update_data, return_document=ReturnDocument.AFTER)
             orders_id = []
             for order in db_response:
                 orders_id.append({'id': order['_id']})
@@ -210,9 +215,9 @@ def make_app(db: Database, data_validator: DataValidator) -> Flask:
 
         try:
             complete_data = request.get_json()
-            data_validator.validate_orders(complete_data)
+            data_validator.validate_orders(complete_data)  # TODO: validation settings
 
-            if db['couriers'].find({'_id': complete_data['courier_id']}) is None:
+            if db['couriers'].find_one({'_id': complete_data['courier_id']}) is None:
                 return make_error_response('Courier with specified id not found', 400)
 
             if db['orders'].find({'_id': complete_data['order_id'], 'status': 'completed'}) is None:
@@ -231,9 +236,17 @@ def make_app(db: Database, data_validator: DataValidator) -> Flask:
             db_response: dict = db['orders'].find_one_and_update(
                 filter=filter_data, update=update_data, return_document=ReturnDocument.AFTER)
             if db_response is None:
-                return make_error_response('Order with specified fields not found', 400)
+                return make_error_response('Order with specified id not found', 400)
+            orders_count = db['orders'].find({'courier_id': complete_data['courier_id'],
+                                              'status': 'in_progress'}).count()
+            if orders_count == 0:
+                db_response_courier: dict = db['couriers'].find_one_and_update(
+                    filter={'_id': complete_data['courier_id']},
+                    update={'$inc': {'assigns': 1}}, return_document=ReturnDocument.AFTER)
+                if db_response_courier is None:
+                    return make_error_response('Courier with specified id not found', 400)
 
-            return db_response['_id'], 201
+            return {'order_id': db_response['_id']}, 201
         except ValidationError as e:
             response = {'validation_error': e.message}
             return response, 400

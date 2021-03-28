@@ -14,3 +14,7 @@ pyrsistent==0.15.3
 python-dateutil==2.8.0
 six==1.12.0
 Werkzeug==0.15.5
+strict-rfc3339
+
+mongomock~=3.22.1
+iso8601~=0.1.14
