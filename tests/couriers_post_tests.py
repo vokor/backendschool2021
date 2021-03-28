@@ -29,7 +29,6 @@ class CouriersPostTests(unittest.TestCase):
             couriers_list.append({'id': courier['courier_id']})
 
         self.assertEqual(http_response.status_code, 201)
-        self.assertEqual(couriers_data["data"], self.db['couriers'].find_one()["data"]) # TODO: check this
         self.assertEqual({'couriers': couriers_list}, response_data)
 
     def test_when_no_content_type_should_return_bad_request(self):
@@ -41,7 +40,8 @@ class CouriersPostTests(unittest.TestCase):
 
     def test_when_database_error_should_return_bad_request(self):
         headers = [('Content-Type', 'application/json')]
-        couriers_data = {'_id': '5a8f1e368f7936badfbb0cfa'}
+        couriers_data = {'data': [{'courier_id': '5a8f1e368f7936badfbb0cfa',
+                                   'courier_type': 'bike', 'regions': [], 'working_hours': []}] }
 
         self.app.post('/couriers', data=json_util.dumps(couriers_data), headers=headers)
         http_response = self.app.post('/couriers', data=json_util.dumps(couriers_data), headers=headers)

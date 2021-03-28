@@ -12,7 +12,14 @@ class CourierPatchTests(unittest.TestCase):
     def setUp(cls):
         cls.app, cls.db, cls.validator = test_utils.set_up_service()
         couriers_data = test_utils.read_couriers_data()
-        cls.db['couriers'].insert_one(couriers_data)
+        data_to_insert = []
+        for courier in couriers_data['data']:
+            data_to_insert.append({'_id': courier['courier_id'],
+                                   'courier_type': courier['courier_type'],
+                                   'regions': courier['regions'],
+                                   'working_hours': courier['working_hours'],
+                                   'assigns': 0})
+        cls.db['couriers'].insert_many(data_to_insert)
 
     def test_update_db_when_patch_received(self):
         headers = [('Content-Type', 'application/json')]
@@ -37,7 +44,7 @@ class CourierPatchTests(unittest.TestCase):
         headers = [('Content-Type', 'application/json')]
         patch_data = {'regions': [11, 33, 2]}
 
-        http_response = self.app.patch('/couriers/10', data=json_util.dumps(patch_data), headers=headers)
+        http_response = self.app.patch('/couriers/5', data=json_util.dumps(patch_data), headers=headers)
 
         response_data = http_response.get_data(as_text=True)
         self.assertIn('Courier with specified id not found', response_data)

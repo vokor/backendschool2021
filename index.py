@@ -36,13 +36,19 @@ def make_app(db: Database, data_validator: DataValidator) -> Flask:
             data_validator.validate_couriers(couriers_data)
 
             with locks['post_couriers']:
-                # TODO: check for duplicate values in db
-                db_response: InsertOneResult = db['couriers'].insert_one(couriers_data)
-                couriers_list = []
+                data_to_insert = []
                 for courier in couriers_data['data']:
-                    couriers_list.append({'id': courier['courier_id']})
+                    data_to_insert.append({'_id': courier['courier_id'],
+                                           'courier_type': courier['courier_type'],
+                                           'regions': courier['regions'],
+                                           'working_hours': courier['working_hours'],
+                                           'assigns': 0})
+                db_response: InsertOneResult = db['couriers'].insert_many(data_to_insert) # TODO: catch human readable exception
 
                 if db_response.acknowledged:
+                    couriers_list = []
+                    for courier in couriers_data['data']:
+                        couriers_list.append({'id': courier['courier_id']})
                     response = {'couriers': couriers_list}
                     return response, 201
                 else:
@@ -74,14 +80,14 @@ def make_app(db: Database, data_validator: DataValidator) -> Flask:
                     data_to_insert.append({'_id': order['order_id'],
                                            'weight': order['weight'],
                                            'region': order['region'],
-                                           'delivery_hours': order['delivery_hours']}) # TODO: refactor this
-                db_response: InsertOneResult = db['orders'].insert_many(data_to_insert)
+                                           'delivery_hours': order['delivery_hours']})
+                db_response: InsertOneResult = db['orders'].insert_many(data_to_insert) # TODO: catch human readable exception
 
                 if db_response.acknowledged:
                     orders_list = []
                     for order in orders_data['data']:
                         orders_list.append({'id': order['order_id']})
-                    response = {'data': orders_list}
+                    response = {'orders': orders_list}
                     return response, 201
                 else:
                     return make_error_response('Operation was not acknowledged', 400)
@@ -105,21 +111,14 @@ def make_app(db: Database, data_validator: DataValidator) -> Flask:
             data_validator.validate_courier_patch(patch_data)
 
             update_data = {
-                '$set': {f'data.$.{key}': val for key, val in patch_data.items()}
-            }
-            projection = {
-                '_id': 0,
-                'data': {
-                    '$elemMatch': {'courier_id': courier_id}
-                }
+                '$set': {f'$.{key}': val for key, val in patch_data.items()}
             }
             db_response: dict = db['couriers'].find_one_and_update(
-                filter={'data.courier_id': courier_id}, update=update_data,
-                projection=projection, return_document=ReturnDocument.AFTER)
+                filter={'_id': courier_id}, update=update_data, return_document=ReturnDocument.AFTER)
             if db_response is None:
                 return make_error_response('Courier with specified id not found', 400)
 
-            return {'data': db_response['data'][0]}, 201
+            return {'data': db_response}, 201
         except ValidationError as e:
             return make_error_response('Courier patch is not valid: ' + str(e), 400)
         except BadRequest as e:

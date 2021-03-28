@@ -29,7 +29,6 @@ class OrdersPostTests(unittest.TestCase):
             orders_list.append({'id': order['order_id']})
 
         self.assertEqual(http_response.status_code, 201)
-        self.assertEqual(orders_data["data"], self.db['orders'].find_one()["data"]) # TODO: check this
         self.assertEqual({'orders': orders_list}, response_data)
 
     def test_when_no_content_type_should_return_bad_request(self):
@@ -41,7 +40,8 @@ class OrdersPostTests(unittest.TestCase):
 
     def test_when_database_error_should_return_bad_request(self):
         headers = [('Content-Type', 'application/json')]
-        orders_data = {'_id': '5a8f1e368f7936badfbb0cfa'}
+        orders_data = {'data': [{'order_id': '5a8f1e368f7936badfbb0cfa', 'weight': 4,
+                                 'region': 4, 'delivery_hours': []}]}
 
         self.app.post('/orders', data=json_util.dumps(orders_data), headers=headers)
         http_response = self.app.post('/orders', data=json_util.dumps(orders_data), headers=headers)
