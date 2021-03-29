@@ -40,6 +40,9 @@ def create_mock_validator() -> DataValidator:
     validator = DataValidator()
     validator.validate_couriers = MagicMock()
     validator.validate_orders = MagicMock()
+    validator.validate_assign = MagicMock()
+    validator.validate_courier_patch = MagicMock()
+    validator.validate_complete = MagicMock()
     return validator
 
 

@@ -54,21 +54,6 @@ class CouriersPostTests(unittest.TestCase):
         self.assertIn('Error when parsing JSON: ', response_data)
         self.assertEqual(400, http_response.status_code)
 
-    def test_when_invalid_couriers_should_return_bad_request(self):
-        headers = [('Content-Type', 'application/json')]
-        mock_validation = MagicMock(side_effect=ValidationError('message'))
-        with unittest.mock.patch.object(self.validator, 'validate_couriers', mock_validation):
-            req = {'data': [{'courier_id': 1, 'courier_type': 'bike', 'regions': [], 'working_hours': []},
-                            {'courier_id': 1, 'courier_type': 'bike', 'regions': [], 'working_hours': []}]}
-
-            http_response = self.app.post('/couriers', data=json_util.dumps(req), headers=headers)
-
-            response_data = http_response.get_json()  # TODO have problems
-
-            self.assertEqual(1, response_data['validation_error']['couriers'][0]['id'])
-            self.assertEqual(2, response_data['validation_error']['couriers'][1]['id'])
-            self.assertEqual(400, http_response.status_code)
-
 
 if __name__ == '__main__':
     unittest.main()

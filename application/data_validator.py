@@ -38,7 +38,7 @@ class DataValidator(object):
             raise ValidationError('Couriers ids are not unique')
         parse_hours(couriers_data, 'working_hours')
 
-    def validate_orders(self, orders_data: dict):  # TODO: may be duplicate code AND check weight 0.043434...
+    def validate_orders(self, orders_data: dict):
         jsonschema.validate(orders_data, self.data_schema)
         errors = []
         for order in orders_data['data']:

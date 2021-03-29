@@ -28,15 +28,14 @@ def make_app(db: Database, data_validator: DataValidator) -> Flask:
     def add_couriers():
 
         if not request.is_json:
-            return BadRequest('Content-Type must be application/json')
+            raise BadRequest('Content-Type must be application/json')
 
         couriers_data = request.get_json()
         data_validator.validate_couriers(couriers_data)
         data_to_insert = prepare_couriers(couriers_data)
 
         with locks['post_couriers']:
-            db_response: InsertOneResult = db['couriers'].insert_many(
-                data_to_insert)  # TODO: catch human readable exception
+            db_response: InsertOneResult = db['couriers'].insert_many(data_to_insert)
 
             if db_response.acknowledged:
                 couriers_list = []
@@ -45,13 +44,13 @@ def make_app(db: Database, data_validator: DataValidator) -> Flask:
                 response = {'couriers': couriers_list}
                 return response, 201
             else:
-                return PyMongoError('Operation was not acknowledged')
+                raise PyMongoError('Operation was not acknowledged')
 
     @app.route('/couriers/<int:courier_id>', methods=['PATCH'])
     @handle_exceptions(logger)
     def patch_courier(courier_id):
         if not request.is_json:
-            return BadRequest('Content-Type must be application/json')
+            raise BadRequest('Content-Type must be application/json')
 
         patch_data = request.get_json()
         data_validator.validate_courier_patch(patch_data)
@@ -62,7 +61,7 @@ def make_app(db: Database, data_validator: DataValidator) -> Flask:
         courier: dict = db['couriers'].find_one_and_update(
             filter={'_id': courier_id}, update=update_data, return_document=ReturnDocument.AFTER)
         if courier is None:
-            return PyMongoError('Courier with specified id not found')
+            raise PyMongoError('Courier with specified id not found')
 
         assigned_orders = {
             'status': 'in_progress',
@@ -83,7 +82,7 @@ def make_app(db: Database, data_validator: DataValidator) -> Flask:
             'courier_id': None
         }
         db['orders'].update_many(
-            filter={'_id': {'$in': un_orders}}, update=update_data)  # TODO: remove duplicate code
+            filter={'_id': {'$in': un_orders}}, update=update_data)
 
         return courier, 201
 
@@ -92,7 +91,7 @@ def make_app(db: Database, data_validator: DataValidator) -> Flask:
     def add_orders():
 
         if not request.is_json:
-            return BadRequest('Content-Type must be application/json')
+            raise BadRequest('Content-Type must be application/json')
 
         orders_data = request.get_json()
         data_validator.validate_orders(orders_data)
@@ -100,8 +99,7 @@ def make_app(db: Database, data_validator: DataValidator) -> Flask:
 
         with locks['post_orders']:
 
-            db_response: InsertOneResult = db['orders'].insert_many(
-                data_to_insert)  # TODO: catch human readable exception
+            db_response: InsertOneResult = db['orders'].insert_many(data_to_insert)
 
             if db_response.acknowledged:
                 orders_list = []
@@ -110,21 +108,21 @@ def make_app(db: Database, data_validator: DataValidator) -> Flask:
                 response = {'orders': orders_list}
                 return response, 201
             else:
-                return PyMongoError('Operation was not acknowledged')
+                raise PyMongoError('Operation was not acknowledged')
 
     @app.route('/orders/assign', methods=['POST'])
     @handle_exceptions(logger)
     def assign_orders():
 
         if not request.is_json:
-            return BadRequest('Content-Type must be application/json')
+            raise BadRequest('Content-Type must be application/json')
 
         assign_id_data = request.get_json()
         data_validator.validate_orders(assign_id_data)
 
         courier = db['couriers'].find_one({'_id': assign_id_data['courier_id']})
         if courier is None:
-            return PyMongoError('Courier with specified id not found')
+            raise PyMongoError('Courier with specified id not found')
 
         assigned_orders = {
             'status': 'in_progress',
@@ -171,13 +169,13 @@ def make_app(db: Database, data_validator: DataValidator) -> Flask:
     def complete_order():
 
         if not request.is_json:
-            return BadRequest('Content-Type must be application/json')
+            raise BadRequest('Content-Type must be application/json')
 
         complete_data = request.get_json()
-        data_validator.validate_orders(complete_data)  # TODO: validation settings
+        data_validator.validate_orders(complete_data)
 
         if db['couriers'].find_one({'_id': complete_data['courier_id']}) is None:
-            return PyMongoError('Courier with specified id not found')
+            raise PyMongoError('Courier with specified id not found')
 
         if db['orders'].find({'_id': complete_data['order_id'], 'status': 'completed'}) is None:
             return complete_data['order_id'], 201
@@ -202,7 +200,7 @@ def make_app(db: Database, data_validator: DataValidator) -> Flask:
             }
             db_response: dict = db['orders'].find_one(filter=filter_data)
             if db_response is None:
-                return PyMongoError('Order with specified id not found')
+                raise PyMongoError('Order with specified id not found')
             return {'order_id': db_response['_id']}, 201
         orders_count = db['orders'].find({'courier_id': complete_data['courier_id'],
                                           'status': 'in_progress'}).count()
@@ -211,7 +209,7 @@ def make_app(db: Database, data_validator: DataValidator) -> Flask:
                 filter={'_id': complete_data['courier_id']},
                 update={'$inc': {'assigns': 1}}, return_document=ReturnDocument.AFTER)
             if db_response_courier is None:
-                return PyMongoError('Courier with specified id not found')
+                raise PyMongoError('Courier with specified id not found')
 
         return {'order_id': db_response['_id']}, 201
 
