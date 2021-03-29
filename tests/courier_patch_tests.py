@@ -13,7 +13,6 @@ class CourierPatchTests(unittest.TestCase): # TODO: add tests
     @classmethod
     def setUp(cls):
         cls.app, cls.db, cls.validator = test_utils.set_up_service()
-        logging.disable(logging.CRITICAL)
         couriers_data = test_utils.read_data('couriers.json')
         data_to_insert = prepare_couriers(couriers_data)
         cls.db['couriers'].insert_many(data_to_insert)

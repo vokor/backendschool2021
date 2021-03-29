@@ -16,7 +16,6 @@ class OrdersValidatorTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.data_validator = DataValidator()
-        logging.disable(logging.CRITICAL)
 
     def test_correct_orders_should_be_valid(self):
         orders_data = read_data('orders.json')

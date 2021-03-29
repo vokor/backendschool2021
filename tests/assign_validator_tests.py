@@ -15,7 +15,6 @@ class AssignValidatorTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.data_validator = DataValidator()
-        logging.disable(logging.CRITICAL)
 
     def test_correct_assign_orders_should_be_valid(self):
         assign_data = {'courier_id': 2}

@@ -16,7 +16,6 @@ class OrdersPostTests(unittest.TestCase):
     @classmethod
     def setUp(cls):
         cls.app, cls.db, cls.validator = test_utils.set_up_service()
-        logging.disable(logging.CRITICAL)
 
     def test_successful_orders_post_should_return_list_ids(self):
         headers = [('Content-Type', 'application/json')]

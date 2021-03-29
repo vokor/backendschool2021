@@ -21,7 +21,6 @@ class CompletePostTests(unittest.TestCase):
     @classmethod
     def setUp(cls):
         cls.app, cls.db, cls.validator = test_utils.set_up_service()
-        logging.disable(logging.CRITICAL)
 
         couriers_data = test_utils.read_data('couriers.json')
         parse_hours(couriers_data, 'working_hours')

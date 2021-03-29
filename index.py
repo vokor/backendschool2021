@@ -19,6 +19,8 @@ from preparer import prepare_couriers, prepare_orders
 from utils import split_orders
 from exception_handler import handle_exceptions
 
+logger = logging.getLogger(__name__)
+
 
 def make_app(db: Database, data_validator: DataValidator) -> Flask:
     app = Flask(__name__)
@@ -26,7 +28,7 @@ def make_app(db: Database, data_validator: DataValidator) -> Flask:
     locks = defaultdict(Lock)
 
     @app.route('/couriers', methods=['POST'])
-    @handle_exceptions
+    @handle_exceptions(logger)
     def add_couriers():
 
         if not request.is_json:
@@ -49,7 +51,7 @@ def make_app(db: Database, data_validator: DataValidator) -> Flask:
                 return PyMongoError('Operation was not acknowledged')
 
     @app.route('/couriers/<int:courier_id>', methods=['PATCH'])
-    @handle_exceptions
+    @handle_exceptions(logger)
     def patch_courier(courier_id):
         if not request.is_json:
             return BadRequest('Content-Type must be application/json')
@@ -89,7 +91,7 @@ def make_app(db: Database, data_validator: DataValidator) -> Flask:
         return courier, 201
 
     @app.route('/orders', methods=['POST'])
-    @handle_exceptions
+    @handle_exceptions(logger)
     def add_orders():
 
         if not request.is_json:
@@ -114,7 +116,7 @@ def make_app(db: Database, data_validator: DataValidator) -> Flask:
                 return PyMongoError('Operation was not acknowledged')
 
     @app.route('/orders/assign', methods=['POST'])
-    @handle_exceptions
+    @handle_exceptions(logger)
     def assign_orders():
 
         if not request.is_json:
@@ -168,7 +170,7 @@ def make_app(db: Database, data_validator: DataValidator) -> Flask:
         return response, 201
 
     @app.route('/orders/complete', methods=['POST'])
-    @handle_exceptions
+    @handle_exceptions(logger)
     def complete_order():
 
         if not request.is_json:
@@ -219,16 +221,27 @@ def make_app(db: Database, data_validator: DataValidator) -> Flask:
     return app
 
 
-def main():
-    config = configparser.ConfigParser()
-    config_path = os.path.join(os.path.dirname(__file__), 'config.cfg')
-    if not os.path.exists(config_path):
-        raise FileNotFoundError(config_path)
-    config.read(config_path)
-    db_uri = config['DATABASE']['DATABASE_URI']
-    db_name = config['DATABASE']['DATABASE_NAME']
+def initiate_replica_set(db_uri: str):
+    """
+    Инициализирует replica set
+    :param str db_uri: ссылка для подключения к базе данных
+    """
+    client = MongoClient(db_uri, 27017)
+    try:
+        client.admin.command('replSetInitiate')
+    except PyMongoError:
+        logger.info('Replication set already initialized')
+    finally:
+        client.close()
 
-    db = MongoClient(db_uri)[db_name]
+
+def main():
+    db_uri = os.environ['DATABASE_URI']
+    db_name = os.environ['DATABASE_NAME']
+    replica_set = os.environ['REPLICA_SET']
+
+    initiate_replica_set(db_uri)
+    db = MongoClient(db_uri, 27017, replicaset=replica_set)[db_name]
     data_validator = DataValidator()
     app = make_app(db, data_validator)
     app.run(host='0.0.0.0', port=8080)

@@ -16,7 +16,6 @@ class CouriersValidatorTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.data_validator = DataValidator()
-        logging.disable(logging.CRITICAL)
 
     def test_correct_couriers_should_be_valid(self):
         couriers_data = read_data('couriers.json')
