@@ -1,3 +1,4 @@
+import logging
 import os
 import unittest
 from datetime import datetime
@@ -14,6 +15,7 @@ class CompleteValidatorTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.data_validator = DataValidator()
+        logging.disable(logging.CRITICAL)
 
     def test_correct_orders_complete_should_be_valid(self):
         complete_data = {'courier_id': 2, 'order_id': 33, 'complete_time': '2021-01-10T10:33:01.42Z'}

@@ -1,3 +1,4 @@
+import logging
 import os
 import unittest
 from unittest.mock import MagicMock
@@ -15,10 +16,11 @@ class OrdersPostTests(unittest.TestCase):
     @classmethod
     def setUp(cls):
         cls.app, cls.db, cls.validator = test_utils.set_up_service()
+        logging.disable(logging.CRITICAL)
 
     def test_successful_orders_post_should_return_list_ids(self):
         headers = [('Content-Type', 'application/json')]
-        orders_data = test_utils.read_orders_data()
+        orders_data = test_utils.read_data('orders.json')
 
         http_response = self.app.post('/orders', data=json_util.dumps(orders_data), headers=headers)
 
@@ -61,7 +63,7 @@ class OrdersPostTests(unittest.TestCase):
 
     def test_when_duplicate_id_should_return_bad_request(self):
         headers = [('Content-Type', 'application/json')]
-        orders_data = test_utils.read_orders_data()
+        orders_data = test_utils.read_data('orders.json')
         self.app.post('/orders', data=json_util.dumps(orders_data), headers=headers)
         http_response = self.app.post('/orders', data=json_util.dumps(orders_data), headers=headers)
 

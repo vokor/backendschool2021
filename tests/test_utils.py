@@ -17,16 +17,10 @@ def create_mock_validator() -> DataValidator:
     return validator
 
 
-def read_couriers_data():
-    with open(os.path.join(os.path.dirname(__file__), 'couriers.json')) as f:
-        couriers_data = json_util.loads(f.read())
-    return couriers_data
-
-
-def read_orders_data():
-    with open(os.path.join(os.path.dirname(__file__), 'orders.json')) as f:
-        orders_data = json_util.loads(f.read())
-    return orders_data
+def read_data(filename: str) -> dict:
+    with open(os.path.join(os.path.dirname(__file__), 'json', filename)) as f:
+        import_data = json_util.loads(f.read())
+    return import_data
 
 
 def set_up_service() -> Tuple[Flask, MongoClient, DataValidator]:

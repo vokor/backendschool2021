@@ -1,3 +1,4 @@
+import logging
 import os
 import unittest
 from unittest.mock import MagicMock
@@ -14,18 +15,20 @@ from parser import parse_hours
 from preparer import prepare_couriers, prepare_orders, prepare_order
 from tests import test_utils
 
+
 # TODO: add tests for Courier assign values, check order data (status...)
 class CompletePostTests(unittest.TestCase):
     @classmethod
     def setUp(cls):
         cls.app, cls.db, cls.validator = test_utils.set_up_service()
+        logging.disable(logging.CRITICAL)
 
-        couriers_data = test_utils.read_couriers_data()
+        couriers_data = test_utils.read_data('couriers.json')
         parse_hours(couriers_data, 'working_hours')
         data_to_insert = prepare_couriers(couriers_data)
         cls.db['couriers'].insert_many(data_to_insert)
 
-        orders_data = test_utils.read_orders_data()
+        orders_data = test_utils.read_data('orders.json')
         parse_hours(orders_data, 'delivery_hours')
         data_to_insert = prepare_orders(orders_data)
         cls.db['orders'].insert_many(data_to_insert)

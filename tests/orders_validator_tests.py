@@ -1,3 +1,4 @@
+import logging
 import os
 import unittest
 from datetime import datetime
@@ -8,16 +9,17 @@ from jsonschema import ValidationError
 from parameterized import parameterized
 
 from data_validator import DataValidator
+from tests.test_utils import read_data
 
 
 class OrdersValidatorTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.data_validator = DataValidator()
+        logging.disable(logging.CRITICAL)
 
     def test_correct_orders_should_be_valid(self):
-        with open(os.path.join(os.path.dirname(__file__), 'orders.json')) as f:
-            orders_data = json_util.loads(f.read())
+        orders_data = read_data('orders.json')
         self.data_validator.validate_orders(orders_data)
 
     def assert_exception(self, orders_data: dict, expected_exception_message: str):

@@ -1,3 +1,4 @@
+import logging
 import os
 import unittest
 from unittest.mock import MagicMock
@@ -15,10 +16,11 @@ class CouriersPostTests(unittest.TestCase):
     @classmethod
     def setUp(cls):
         cls.app, cls.db, cls.validator = test_utils.set_up_service()
+        logging.disable(logging.CRITICAL)
 
     def test_successful_couriers_post_should_return_list_ids(self):
         headers = [('Content-Type', 'application/json')]
-        couriers_data = test_utils.read_couriers_data()
+        couriers_data = test_utils.read_data('couriers.json')
 
         http_response = self.app.post('/couriers', data=json_util.dumps(couriers_data), headers=headers)
 

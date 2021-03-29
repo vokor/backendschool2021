@@ -1,3 +1,4 @@
+import logging
 import unittest
 from unittest.mock import MagicMock
 
@@ -5,20 +6,16 @@ from bson import json_util
 from jsonschema import ValidationError
 
 import tests.test_utils as test_utils
+from preparer import prepare_couriers
 
 
-class CourierPatchTests(unittest.TestCase):
+class CourierPatchTests(unittest.TestCase): # TODO: add tests
     @classmethod
     def setUp(cls):
         cls.app, cls.db, cls.validator = test_utils.set_up_service()
-        couriers_data = test_utils.read_couriers_data()
-        data_to_insert = []
-        for courier in couriers_data['data']:
-            data_to_insert.append({'_id': courier['courier_id'],
-                                   'courier_type': courier['courier_type'],
-                                   'regions': courier['regions'],
-                                   'working_hours': courier['working_hours'],
-                                   'assigns': 0})
+        logging.disable(logging.CRITICAL)
+        couriers_data = test_utils.read_data('couriers.json')
+        data_to_insert = prepare_couriers(couriers_data)
         cls.db['couriers'].insert_many(data_to_insert)
 
     def test_update_db_when_patch_received(self):
@@ -29,7 +26,7 @@ class CourierPatchTests(unittest.TestCase):
 
         response_data = http_response.get_json()
         self.assertEqual(http_response.status_code, 201)
-        self.assertEqual(patch_data['regions'], response_data['data']['regions'])
+        self.assertEqual(patch_data['regions'], response_data['regions'])
 
     def test_should_return_bad_request_when_no_content_type(self):
         patch_data = {'regions': [11, 33, 2]}
@@ -50,7 +47,7 @@ class CourierPatchTests(unittest.TestCase):
         self.assertIn('Courier with specified id not found', response_data)
         self.assertEqual(400, http_response.status_code)
 
-    def test_should_return_bad_request_when_patch_not_valid(self):
+    def test_should_return_bad_request_when_patch_not_valid(self): # TODO: why
         headers = [('Content-Type', 'application/json')]
         patch_data = {'regions': [11, 33, 2]}
         mock_validation = MagicMock(side_effect=ValidationError('message'))

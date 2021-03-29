@@ -1,3 +1,4 @@
+import logging
 import os
 import unittest
 from datetime import datetime
@@ -20,8 +21,9 @@ class AssignPostTests(unittest.TestCase):
     @classmethod
     def setUp(cls):
         cls.app, cls.db, cls.validator = test_utils.set_up_service()
+        logging.disable(logging.CRITICAL)
 
-        orders_data = test_utils.read_orders_data()
+        orders_data = test_utils.read_data('orders.json')
         parse_hours(orders_data, 'delivery_hours')
         data_to_insert = prepare_orders(orders_data)
         cls.db['orders'].insert_many(data_to_insert)
@@ -88,6 +90,7 @@ class AssignPostTests(unittest.TestCase):
         response_data = http_response.get_json()
         self.assertEqual(201, http_response.status_code)
         self.assertEqual([{'id': 1}, {'id': 3}], response_data['orders'])
+
 
 if __name__ == '__main__':
     unittest.main()

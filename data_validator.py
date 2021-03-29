@@ -11,21 +11,17 @@ from parser import parse_hours
 
 class DataValidator(object):
     def __init__(self):
-        data_schema_path = os.path.join(os.path.dirname(__file__), 'schemas', 'data_schema.json')
-        courier_schema_path = os.path.join(os.path.dirname(__file__), 'schemas', 'courier_schema.json')
-        order_schema_path = os.path.join(os.path.dirname(__file__), 'schemas', 'order_schema.json')
-        complete_schema_path = os.path.join(os.path.dirname(__file__), 'schemas', 'complete_schema.json')
-        assign_schema_path = os.path.join(os.path.dirname(__file__), 'schemas', 'assign_schema.json')
-        with open(data_schema_path) as f:
-            self.data_schema = json_util.loads(f.read())
-        with open(courier_schema_path) as f:
-            self.courier_schema = json_util.loads(f.read())
-        with open(order_schema_path) as f:
-            self.order_schema = json_util.loads(f.read())
-        with open(complete_schema_path) as f:
-            self.complete_schema = json_util.loads(f.read())
-        with open(assign_schema_path) as f:
-            self.assign_schema = json_util.loads(f.read())
+        self.data_schema = self.__load_schema('data_schema.json')
+        self.courier_schema = self.__load_schema('courier_schema.json')
+        self.order_schema = self.__load_schema('order_schema.json')
+        self.complete_schema = self.__load_schema('complete_schema.json')
+        self.assign_schema = self.__load_schema('assign_schema.json')
+        self.courier_patch_schema = self.__load_schema('courier_patch_schema.json')
+
+    @staticmethod
+    def __load_schema(schema_name: str):
+        with open(os.path.join(os.path.dirname(__file__), 'schemas', schema_name)) as f:
+            return json_util.loads(f.read())
 
     def validate_couriers(self, couriers_data: dict):
         jsonschema.validate(couriers_data, self.data_schema)
@@ -67,4 +63,4 @@ class DataValidator(object):
         jsonschema.validate(assign_data, self.assign_schema)
 
     def validate_courier_patch(self, patch_data: dict):
-        pass
+        jsonschema.validate(patch_data, self.courier_patch_schema)
