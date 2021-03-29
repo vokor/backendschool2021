@@ -1,3 +1,4 @@
+[![Build Status](https://travis-ci.com/vokor/backendschool2021.svg?token=qCnqbxaGF2UTqcxu1s1x&branch=main)](https://travis-ci.com/github/vokor/backendschool2021)
 ##  Описание задания
 Чтобы немного скрасить жизнь людей на самоизоляции, вы решаете открыть
 интернет-магазин по доставке конфет "Сласти от всех напастей".
@@ -6,14 +7,14 @@
 принимать заказы и оптимально распределять заказы между курьерами, попутно считая их рейтинг и заработок.
 
 
- ##Реализованные обработчики REST API
+## Реализованные обработчики REST API
    * POST /couriers
    * PATCH /couriers/$courier_id
    * POST /orders
    * POST /orders/assign
    * POST /orders/complete
 
- ##Запуск приложения
+## Запуск приложения
 
    * Docker Compose
 
