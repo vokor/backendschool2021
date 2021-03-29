@@ -1,12 +1,11 @@
 import os
-from datetime import datetime, timedelta
 
 import jsonschema
 from bson import json_util
 from jsonschema import ValidationError
 import iso8601
 
-from parser import parse_hours
+from utils.parser import parse_hours
 
 
 class DataValidator(object):
