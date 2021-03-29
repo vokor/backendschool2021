@@ -1,14 +1,11 @@
-import logging
-import os
 import unittest
 from datetime import datetime
 from unittest.mock import MagicMock
 
-from bson import json_util
 from jsonschema import ValidationError
 from parameterized import parameterized
 
-from data_validator import DataValidator
+from application.data_validator import DataValidator
 from tests.test_utils import read_data
 
 

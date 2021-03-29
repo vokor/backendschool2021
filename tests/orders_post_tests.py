@@ -1,14 +1,9 @@
-import logging
-import os
 import unittest
 from unittest.mock import MagicMock
 
-import mockupdb
+
 from bson import json_util
 from jsonschema import ValidationError
-from pymongo import MongoClient
-
-from index import make_app
 from tests import test_utils
 
 

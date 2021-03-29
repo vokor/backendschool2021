@@ -1,22 +1,17 @@
-import logging
-import os
 import unittest
-from unittest.mock import MagicMock
 
-import mockupdb
 from bson import json_util
 from iso8601 import iso8601
-from jsonschema import ValidationError
 from parameterized import parameterized
-from pymongo import MongoClient
 
-from index import make_app
-from parser import parse_hours
-from preparer import prepare_couriers, prepare_orders, prepare_order
 from tests import test_utils
 
 
 # TODO: add tests for Courier assign values, check order data (status...)
+from utils.parser import parse_hours
+from utils.preparer import prepare_couriers, prepare_orders, prepare_order
+
+
 class CompletePostTests(unittest.TestCase):
     @classmethod
     def setUp(cls):

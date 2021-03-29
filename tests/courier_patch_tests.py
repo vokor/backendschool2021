@@ -1,4 +1,3 @@
-import logging
 import unittest
 from unittest.mock import MagicMock
 
@@ -6,7 +5,7 @@ from bson import json_util
 from jsonschema import ValidationError
 
 import tests.test_utils as test_utils
-from preparer import prepare_couriers
+from utils.preparer import prepare_couriers
 
 
 class CourierPatchTests(unittest.TestCase): # TODO: add tests
