@@ -7,7 +7,6 @@ from parameterized import parameterized
 from tests import test_utils
 
 
-# TODO: add tests for Courier assign values, check order data (status...)
 from utils.parser import parse_hours
 from utils.preparer import prepare_couriers, prepare_orders, prepare_order
 
