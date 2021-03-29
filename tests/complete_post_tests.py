@@ -67,6 +67,16 @@ class CompletePostTests(unittest.TestCase):
         self.assertEqual(400, http_response.status_code)
         self.assertIn('Order with specified id not found', http_data)
 
+    def test_complete_should_be_idempotency(self):
+        headers = [('Content-Type', 'application/json')]
+        self.add_correct_order()
+        complete_data = {'courier_id': 1, 'order_id': 33, 'complete_time': '2021-01-10T10:20:01.42Z'}
+        self.app.post('/orders/complete', data=json_util.dumps(complete_data), headers=headers)
+        http_response = self.app.post('/orders/complete', data=json_util.dumps(complete_data), headers=headers)
+        response_data = http_response.get_json()
+        self.assertEqual(201, http_response.status_code)
+        self.assertEqual({'order_id': 33}, response_data)
+
 
 if __name__ == '__main__':
     unittest.main()

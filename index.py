@@ -96,9 +96,8 @@ def make_app(db: Database, data_validator: DataValidator) -> Flask:
                 'assign_time': None,
                 'courier_id': None
             }
-            db['orders'].find_one_and_update(
-                filter={'_id': {'$in': un_orders}}, update=update_data,
-                return_document=ReturnDocument.AFTER)  # TODO: remove duplicate code
+            db['orders'].update_many(
+                filter={'_id': {'$in': un_orders}}, update=update_data)  # TODO: remove duplicate code
 
             return courier, 201
         except ValidationError as e:
@@ -154,45 +153,46 @@ def make_app(db: Database, data_validator: DataValidator) -> Flask:
             assign_id_data = request.get_json()
             data_validator.validate_orders(assign_id_data)
 
-            courier = db['couriers'].find({'_id': assign_id_data['courier_id']})
+            courier = db['couriers'].find_one({'_id': assign_id_data['courier_id']})
             if courier is None:
                 return make_error_response('Courier with specified id not found', 400)
 
             assigned_orders = {
                 'status': 'in_progress',
-                'courier_id': courier.courier_id
+                'courier_id': courier['_id']
             }
-            db_response: dict = db['orders'].find(filter=assigned_orders)
-            assign_time = db_response[0]['assign_time']
-            if db_response is None:
+            list_orders = list(db['orders'].find(filter=assigned_orders))
+            if len(list_orders):
+                assign_time = list_orders[0]['assign_time']
+            else:
                 max_weight = 10 * (courier['courier_type'] == 'foot') + 15 * (
                         courier['courier_type'] == 'bike') + 50 * (courier['courier_type'] == 'car')
                 matching_orders = {
                     'status': 'not_assigned',
                     'weight': {'$lte': max_weight},
-                    'region': {'$in': courier.regions},
+                    'region': {'$in': courier['regions']},
                 }
-                db_response: dict = db['orders'].find(filter=matching_orders)
-                if db_response is None:
+                list_orders = list(db['orders'].find(filter=matching_orders))
+                if len(list_orders) == 0:
                     return {'orders': []}, 201
-                av_orders, _ = split_orders(db_response, courier['working_hours'])
+                av_orders, _ = split_orders(list_orders, courier['working_hours'])
                 if len(av_orders) == 0:
                     return {'orders': []}, 201
                 else:
-                    assign_time = datetime.now(tz=None)
+                    assign_time = datetime.utcnow().isoformat("T") + "Z"  # <-- get time in UTC
                     update_data = {
                         '$set': {
+                            'courier_id': courier['_id'],
                             'status': 'in_progress',
                             'assign_time': assign_time,
-                            'courier_id': courier.courier_id
                         }
                     }
                     av_order_ids = list(map(lambda x: x['_id'], av_orders))
-                    db_response: dict = db['orders'].find_one_and_update(
-                        filter={'_id': {'$in': av_order_ids}},
-                        update=update_data, return_document=ReturnDocument.AFTER)
+                    db['orders'].update_many(
+                        filter={'_id': {'$in': av_order_ids}}, update=update_data)
+                    list_orders = list(db['orders'].find(filter=assigned_orders))
             orders_id = []
-            for order in db_response:
+            for order in list_orders:
                 orders_id.append({'id': order['_id']})
             response = {'orders': orders_id, 'assign_time': assign_time}
             return response, 201
@@ -236,7 +236,15 @@ def make_app(db: Database, data_validator: DataValidator) -> Flask:
             db_response: dict = db['orders'].find_one_and_update(
                 filter=filter_data, update=update_data, return_document=ReturnDocument.AFTER)
             if db_response is None:
-                return make_error_response('Order with specified id not found', 400)
+                filter_data = {
+                    '_id': complete_data['order_id'],
+                    'courier_id': complete_data['courier_id'],
+                    'status': 'completed'
+                }
+                db_response: dict = db['orders'].find_one(filter=filter_data)
+                if db_response is None:
+                    return make_error_response('Order with specified id not found', 400)
+                return {'order_id': db_response['_id']}, 201
             orders_count = db['orders'].find({'courier_id': complete_data['courier_id'],
                                               'status': 'in_progress'}).count()
             if orders_count == 0:

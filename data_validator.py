@@ -15,6 +15,7 @@ class DataValidator(object):
         courier_schema_path = os.path.join(os.path.dirname(__file__), 'schemas', 'courier_schema.json')
         order_schema_path = os.path.join(os.path.dirname(__file__), 'schemas', 'order_schema.json')
         complete_schema_path = os.path.join(os.path.dirname(__file__), 'schemas', 'complete_schema.json')
+        assign_schema_path = os.path.join(os.path.dirname(__file__), 'schemas', 'assign_schema.json')
         with open(data_schema_path) as f:
             self.data_schema = json_util.loads(f.read())
         with open(courier_schema_path) as f:
@@ -23,7 +24,8 @@ class DataValidator(object):
             self.order_schema = json_util.loads(f.read())
         with open(complete_schema_path) as f:
             self.complete_schema = json_util.loads(f.read())
-        self.assign_schema = {"courier_id": {"type": "integer", "minimum": 1}}
+        with open(assign_schema_path) as f:
+            self.assign_schema = json_util.loads(f.read())
 
     def validate_couriers(self, couriers_data: dict):
         jsonschema.validate(couriers_data, self.data_schema)

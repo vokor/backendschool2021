@@ -35,3 +35,13 @@ def prepare_order(order_id, weight=3, region=3, delivery_hours=None, status='not
             'courier_id': courier_id,
             'assign_time': assign_time,
             'complete_time': complete_time}
+
+
+def prepare_courier(courier_id, courier_type='foot', regions=None, working_hours=None, assigns=0):
+    if working_hours is None:
+        working_hours = []
+    return {'_id': courier_id,
+            'courier_type': courier_type,
+            'regions': regions,
+            'working_hours': working_hours,
+            'assigns': assigns}

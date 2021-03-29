@@ -1,0 +1,14 @@
+{
+  "title": "Assign",
+  "type": "object",
+  "properties": {
+    "courier_id": {
+      "type": "integer",
+      "minimum": 1
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+        "courier_id"
+    ]
+}

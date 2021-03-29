@@ -44,7 +44,7 @@ class CompleteValidatorTests(unittest.TestCase):
         complete_data = {'complete_time': '2021-01-10T10:33:01.42Z', 'order_id': 33, 'courier_id': 2}
         self.data_validator.validate_complete(complete_data)
 
-    def test_import_should_be_incorrect_when_containing_extra_fields(self):
+    def test_complete_should_be_incorrect_when_containing_extra_fields(self):
         complete_data = {'EXTRA': 0, 'complete_time': '2021-01-10T10:33:01.42Z', 'order_id': 33, 'courier_id': 2}
         self.assert_exception(complete_data, '')
 
